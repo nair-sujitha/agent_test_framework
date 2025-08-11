@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent_test_framework"
+version = "0.1.0"
+description = "Framework to generate browser agent tests from YAML specs"
+authors = [
+    { name = "Your Name", email = "you@example.com" }
+]
+readme = "README.md"
+license = "MIT AND (Apache-2.0 OR BSD-2-Clause)"
+dependencies = [
+    "pytest",
+    "pytest-asyncio",
+    "pydantic",
+    "allure-pytest",
+    "PyYAML",
+    "browser-use",
+    "allure-python-commons",
+    "python-dotenv",
+    "click"
+]
+
+[project.entry-points.pytest11]
+agent_test_framework = "agent_test_framework.pytest_plugin"
+
+
+[project.optional-dependencies]
+dev = [
+    "black",
+    "isort",
+    "pytest-asyncio",
+    "twine",
+    "build"
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[project.scripts]
+agent-test-cli = "agent_test_framework.cli.main:cli"
