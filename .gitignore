@@ -1,0 +1,26 @@
+# ========================
+# Python
+# ========================
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+.env/
+
+#Allure
+allure-results/
+
+#pytest cache
+.pytest_cache/
+__pycache__
+
+# JetBrains IDE project files
+.idea/
+
