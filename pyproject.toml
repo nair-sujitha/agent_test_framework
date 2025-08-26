@@ -29,10 +29,14 @@ agent_test_framework = "agent_test_framework.pytest_plugin"
 
 [project.optional-dependencies]
 dev = [
-    "black",
-    "isort",
+    "pytest",
+    "allure-pytest",
+    "browser-use",
+    "allure-python-commons",
+    "python-dotenv",
+    "click",
+    "PyYAML",
     "pytest-asyncio",
-    "twine",
     "build"
 ]
 
