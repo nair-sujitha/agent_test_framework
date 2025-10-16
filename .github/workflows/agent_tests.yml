@@ -231,6 +231,14 @@ jobs:
           adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed | tr -d "\r") ]]; do sleep 1; done;'
           echo "Emulator booted."
           
+          # Step 1: Download Chrome APK
+          echo "Downloading Chrome APK..."
+          # Replace with a real download URL for Chrome APK.
+          curl -L "https://apk.gold/go/?file_id=3327721&b=aHR0cHM6Ly9zcnYwMDMuYXBrZ29sZC12bi5jb20vc3RvcmFnZS8xNi8yNzMvNDI3My94ODYvMTdhNTBhMjIzNzMwMjU1N2UwNWExODFiMTU0OTU3MGUvQ2hyb21lLTE0MS4wLjczOTAuNDMuYXBrP3M9cDQ1dktYNWZ5bWVHSGpUNmFvaEVlQSZlPTE3NjA3MTc1ODImbGFuZz1lbiZhcGtfaWQ9MTE2MyZwcmVtaXVtX3NwZWVkPTA=" -o chrome.apk
+          
+          # Step 2: Install Chrome on the emulator
+          echo "Installing Chrome on emulator..."
+          adb install chrome.apk
           
           
           # Kill the emulator at the end
