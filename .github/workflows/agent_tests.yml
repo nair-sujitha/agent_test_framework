@@ -1,0 +1,238 @@
+name: Python Agent Pip Tests
+
+on:
+  push:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Select platform to test'
+        required: true
+        default: 'mobile-web'
+        type: choice
+        options:
+          - desktop-web
+          - mobile-web
+
+jobs:
+  desktop-web:
+    # Run for push/pr or if workflow_dispatch selects 'desktop-web'
+    # if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.platform == 'desktop-web' }}
+    # Only run for workflow_dispatch AND platform == 'desktop-web'
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.platform == 'desktop-web' }}
+    runs-on: ubuntu-latest
+    env:
+      CDP_PORT: 9222
+      CDP_URL: http://localhost:9222
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Chrome and dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget gnupg
+          wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+          sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list'
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+
+      - name: Install Chrome dependencies
+        run: |
+          sudo apt-get install -y \
+            libgbm-dev \
+            fonts-liberation \
+            libasound2t64 \
+            libatk-bridge2.0-0 \
+            libnspr4 \
+            libnss3 \
+            libxss1 \
+            xdg-utils \
+            libu2f-udev \
+            libvulkan1 \
+            libxshmfence1
+
+      - name: Check if CDP_PORT is already in use
+        run: |
+          if sudo lsof -i :${CDP_PORT} | grep LISTEN; then
+            echo "ERROR: CDP_PORT ${CDP_PORT} is already in use!"
+            exit 1
+          else
+            echo "CDP_PORT ${CDP_PORT} is free."
+          fi
+
+      - name: Download agent_test_framework wheel artifact from v0.1.0 release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download v0.1.0 --repo one-thd/ocm_pd_totf-agent_test_framework --pattern "agent_test_framework-0.1.0-py3-none-any.whl"
+
+      - name: Show wheel file info
+        run: |
+          file agent_test_framework-0.1.0-py3-none-any.whl
+          ls -lh agent_test_framework-0.1.0-py3-none-any.whl
+          head agent_test_framework-0.1.0-py3-none-any.whl
+
+      - name: Install agent_test_framework wheel
+        run: |
+          pip install --no-cache-dir agent_test_framework-0.1.0-py3-none-any.whl
+
+      - name: Run agent-test-cli for agent_pip_tests
+        working-directory: agent_pip_tests
+        run: |
+          agent-test-cli --run --log-cli-level=DEBUG --alluredir=allure-results --id 1016 --regen --local-standalone
+
+      - name: Download Allure CLI (if results exist)
+        if: always()
+        run: |
+          if [ -d agent_pip_tests/allure-results ]; then
+          wget https://github.com/allure-framework/allure2/releases/download/2.27.0/allure-2.27.0.tgz
+          tar -zxvf allure-2.27.0.tgz
+          else
+          echo "No allure-results directory found, skipping Allure CLI download."
+          fi
+
+      - name: Generate Allure HTML report (if results exist)
+        if: always()
+        run: |
+          if [ -d agent_pip_tests/allure-results ]; then
+            export PATH="$PWD/allure-2.27.0/bin:$PATH"
+            allure generate agent_pip_tests/allure-results -o allure-report --clean
+          else
+            echo "No allure-results directory found, skipping report generation."
+          fi
+
+      - name: Upload Allure HTML report as artifact (if generated)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-html-report
+          path: allure-report
+          if-no-files-found: warn
+
+      - name: Add Allure HTML report info to summary
+        if: always()
+        run: |
+          if [ -d allure-report ]; then
+            echo "## Allure HTML Report" >> $GITHUB_STEP_SUMMARY
+            echo "Download the 'allure-html-report' artifact and do the following: Extract -> cd allure-html-report -> python -m http.server 8000 -> Then visit: http://localhost:8000 to view your test results." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## Allure HTML Report" >> $GITHUB_STEP_SUMMARY
+            echo "No Allure HTML report was generated in this run." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: List all files in Chrome user data directories (if any)
+        if: always()
+        run: |
+          shopt -s nullglob
+          dirs=(/tmp/chrome_cdp_*)
+          if [ ${#dirs[@]} -gt 0 ]; then
+            echo "Found chrome_cdp_* directories in /tmp:"
+            ls -ld /tmp/chrome_cdp_*
+            echo "Listing all files in chrome_cdp_* directories:"
+            find /tmp/chrome_cdp_* -type f -ls
+          else
+            echo "No chrome_cdp_* user data directories found in /tmp."
+          fi
+
+      - name: Collect all files in Chrome user data directories for upload (if any)
+        if: always()
+        run: |
+          shopt -s nullglob
+          dirs=(/tmp/chrome_cdp_*)
+          if [ ${#dirs[@]} -gt 0 ]; then
+            mkdir -p chrome-user-data-all
+            for d in "${dirs[@]}"; do
+              if [ -d "$d" ]; then
+                find "$d" -type f -exec cp --parents {} chrome-user-data-all/ \;
+              fi
+            done
+          else
+            echo "No chrome_cdp_* user data directories found to collect."
+          fi
+
+      - name: Upload all Chrome user data files as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chrome-user-data-all
+          path: chrome-user-data-all
+          if-no-files-found: warn
+
+  mobile-web:
+    # Run for push/pr or if workflow_dispatch selects 'mobile-web'
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.platform == 'mobile-web' }}
+    # Only run for workflow_dispatch AND platform == 'mobile-web'
+    #if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.platform == 'mobile-web' }}
+
+    runs-on: ubuntu-latest
+    env:
+      ANDROID_ARCH: x86_64
+      ANDROID_TARGET: google_apis_playstore
+      API_LEVEL: 33
+      ANDROID_BUILD_TOOLS_VERSION: 33.0.2
+      ANDROID_SDK_PACKAGES: system-images;android-33;google_apis_playstore;x86_64 platforms;android-33 build-tools;33.0.2 platform-tools emulator
+      EMULATOR_TIMEOUT: 350
+      EMULATOR_NAME: nexus
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Enable KVM group permissions
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Add avdmanager and sdkmanager to system PATH
+        run: |
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/emulator:$ANDROID_HOME/tools:$ANDROID_HOME/platform-tools:$ANDROID_HOME/build-tools/${{ env.ANDROID_BUILD_TOOLS_VERSION }}" >> $GITHUB_PATH
+
+      - name: Install Sdk
+        run: |
+          yes Y | sdkmanager --licenses
+          sdkmanager --install ${ANDROID_SDK_PACKAGES}
+
+      - name: Build emulator
+        run: |
+          echo "Emulator name: $EMULATOR_NAME"
+          echo "Home ********* : $HOME"
+          echo "ANDROID_HOME *********** : $ANDROID_HOME"
+          echo "ANDROID_AVD_HOME ******* : $ANDROID_AVD_HOME"
+          
+          echo "no" | avdmanager --verbose create avd --force -n ${EMULATOR_NAME} \
+          --abi "${ANDROID_TARGET}/${ANDROID_ARCH}" \
+          -k "system-images;android-${API_LEVEL};${ANDROID_TARGET};${ANDROID_ARCH}"
+
+      - name: Create symbolic link for AVD
+        run: |
+          ln -s /home/runner/.config/.android /home/runner/.android
+
+      - name: Launch emulator, install Chrome, and run tests
+        run: |
+          echo "Emulator name: $EMULATOR_NAME"
+          echo "Home ********* : $HOME"
+          echo "ANDROID_HOME *********** : $ANDROID_HOME"
+          echo "ANDROID_AVD_HOME ******* : $ANDROID_AVD_HOME"
+          
+          # Launch the emulator with hardware acceleration
+          nohup emulator -avd ${EMULATOR_NAME} -no-window -no-snapshot -accel on -gpu off -camera-back none &
+          
+          # Wait for the emulator to be fully booted
+          echo "Waiting for emulator to be fully booted..."
+          adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed | tr -d "\r") ]]; do sleep 1; done;'
+          echo "Emulator booted."
+          
+          
+          
+          # Kill the emulator at the end
+          adb emu kill || true
+      
