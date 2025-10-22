@@ -187,6 +187,7 @@ jobs:
           arch: x86_64
           profile: pixel_3a # Or your desired device profile
           emulator-options: -no-window -no-audio -no-boot-anim
+          emulator-boot-timeout: 900
           script: |
             echo "Emulator booted successfully."
             # Open Chrome and navigate to a URL
