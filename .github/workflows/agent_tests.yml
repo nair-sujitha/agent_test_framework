@@ -201,4 +201,14 @@ jobs:
             
             # Optional: Wait for a few seconds to observe (or add further actions)
             sleep 10
+            
+            adb forward tcp:9222 localabstract:chrome_devtools_remote
+            echo "Port forwarding done"
+            sleep 5
+            
+            echo "forward list"
+            adb forward --list
+
+      - name: Verify tabs on Chrome DevTools endpoint
+        run: curl http://localhost:9222/json/list
       
