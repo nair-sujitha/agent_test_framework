@@ -199,8 +199,20 @@ jobs:
             adb shell am start -a android.intent.action.VIEW -d "https://www.google.com" com.android.chrome
             echo "Chrome opened to Google."
             
-            # Optional: Wait for a few seconds to observe (or add further actions)
-            sleep 10
+            # --- Wait for Chrome's DevTools socket to appear ---
+            for i in {1..30}; do
+                SOCKETS=$(adb shell cat /proc/net/unix | grep chrome_devtools_remote || true)
+                if [ -n "$SOCKETS" ]; then
+                    echo "Found chrome_devtools_remote socket."
+                    break
+                fi
+                echo "Waiting for chrome_devtools_remote socket... (Attempt $i/30)"
+                sleep 2
+                if [ "$i" -eq 30 ]; then
+                    echo "Timeout: chrome_devtools_remote socket not found."
+                    exit 1
+                fi
+            done
             
             echo "Check socket names"
             adb shell cat /proc/net/unix | grep chrome || echo "No chrome sockets found"
