@@ -200,6 +200,7 @@ jobs:
             echo "Chrome opened to Google."
             
             # --- Wait for Chrome's DevTools socket to appear ---
+            #!/bin/bash
             for i in {1..30}; do
                 SOCKETS=$(adb shell cat /proc/net/unix | grep chrome_devtools_remote || true)
                 if [ -n "$SOCKETS" ]; then
