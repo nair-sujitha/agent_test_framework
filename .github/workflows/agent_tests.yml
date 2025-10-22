@@ -203,10 +203,10 @@ jobs:
             sleep 10
             
             echo "Check socket names"
-            adb shell cat /proc/net/unix | grep chrome || "No chrome sockets found"
-            adb shell cat /proc/net/unix | grep devtools || "No dev tools sockets found"
-            adb shell cat /proc/net/unix | grep remote || "No remote sockets found"
-            adb shell cat /proc/net/unix | grep chromium || "No chromium sockets found"
+            adb shell cat /proc/net/unix | grep chrome || echo "No chrome sockets found"
+            adb shell cat /proc/net/unix | grep devtools || echo "No dev tools sockets found"
+            adb shell cat /proc/net/unix | grep remote || echo "No remote sockets found"
+            adb shell cat /proc/net/unix | grep chromium || echo "No chromium sockets found"
             echo "Full sockets listing"
             adb shell cat /proc/net/unix
             
