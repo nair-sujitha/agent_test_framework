@@ -208,7 +208,7 @@ jobs:
             
             echo "forward list"
             adb forward --list
-
-      - name: Verify tabs on Chrome DevTools endpoint
-        run: curl http://localhost:9222/json/list
+            
+            echo "verify tabs on chrome devtools endpoint"
+            curl http://localhost:9222/json/list
       
